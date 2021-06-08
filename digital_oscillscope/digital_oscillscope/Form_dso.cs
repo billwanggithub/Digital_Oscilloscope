@@ -12,6 +12,7 @@ using System.Windows.Forms.DataVisualization.Charting;
 using DSP;
 using NWaves.Transforms;
 using NWaves.Signals;
+using LevelScale = NWaves.Utils.Scale;
 using DSO;
 using MY_UI;
 using MY_FUNCTION;
@@ -245,7 +246,7 @@ namespace digital_oscillscope
         private void button_add_waveform_Click(object sender, EventArgs e)
         {
             add_series();
-            enum_series();
+            refresh_series_combobox_list(comboBox_chart_area.Text);
         }
 
         public void add_series()
@@ -379,11 +380,10 @@ namespace digital_oscillscope
             var x_origonal = chart_series[chart_area_name][series_name].x;
             var y_origonal = chart_series[chart_area_name][series_name].y;
             var y_filtered = CLass_DSP.butterworth_filter(y_origonal, hdo4034a.data[ch_name].horizontal_interval, cutoff_frequency, filter_order);
-            if ((radioButton_waveform.Checked) || (radioButton_frequency.Checked))
+            if (radioButton_waveform.Checked || radioButton_fft.Checked)
             {
                 my_ui.console_print(richTextBox_console, $"Data Filter/Decimation\n");          
 
-                my_ui.console_print(richTextBox_console, $"Data Filter/Decimation\n");
                 //x = CLass_DSP.data_decimation(chart_series[chart_area_name][series_name].x, decimation_interval);
                 //y = CLass_DSP.data_decimation(chart_series[chart_area_name][series_name].y, decimation_interval);
 
@@ -403,29 +403,37 @@ namespace digital_oscillscope
                         return;
                 }
 
-                int power_of_2 = 0;
+
                 if (radioButton_fft.Checked)
                 {
+                    int power_of_2 = 0;
+                    int fft_size = 0;
+
+                    // Calculate the FFT size(power of 2)
                     for (power_of_2 = 0; power_of_2 < 25; power_of_2++)
                     {
-                        if ((2 ^ power_of_2) >= size_decimation)
+                        fft_size = (int)(Math.Pow(2, power_of_2));
+                        if (fft_size >= size_decimation)
                         {
                             break;
                         }
                     }
-
-                    double[] data_pof2 = new double[2 ^ power_of_2];
+                    
+                    double[] data_pof2 = new double[fft_size];
                     Array.Copy(y_decimation, data_pof2, y_decimation.Length);
-                    var fft = new RealFft(2 ^ power_of_2);
+                    var fft = new RealFft(fft_size);
                     //float[] spectrum = new float[2 ^ power_of_2];
-                    int sampling_rate = (int)(1 / hdo4034a.data[ch_name].horizontal_interval);
-                    var signal = new DiscreteSignal(sampling_rate, y_decimation.Select(v => (float)v).ToArray(), true);
-                    var logPowerSpectrum =
-                        fft.PowerSpectrum(signal)
-                           .Samples
-                           .Select(s => 20 * Math.Log10(s))
-                           .ToArray();
-                    (x, y) = (x_decimation, y_decimation);
+                    int sampling_rate = (int)(1 / (hdo4034a.data[ch_name].horizontal_interval * decimation_interval));
+                    var signal = new DiscreteSignal(sampling_rate, data_pof2.Select(v => (float)v).ToArray(), true);
+                    var mag_spectrum = fft.MagnitudeSpectrum(signal);
+                    y = mag_spectrum.Samples.Select(s => LevelScale.ToDecibel(s)).ToArray();
+
+                    double df = sampling_rate / fft_size;
+                    x = Enumerable.Range(0, y.Length).Select(s => s * df).ToArray();
+
+                    my_ui.console_print(richTextBox_console, $"Data size = {size_decimation} Sampling Rate = {1 / hdo4034a.data[ch_name].horizontal_interval}\n");
+                    my_ui.console_print(richTextBox_console, $"FFT size = {fft_size} Sampling Rate = {sampling_rate}\n");
+
                 }
                 else
                 {
@@ -571,32 +579,10 @@ namespace digital_oscillscope
 
         private void comboBox_series_MouseClick(object sender, MouseEventArgs e)
         {
-
-            enum_series();
+            refresh_series_combobox_list(comboBox_chart_area.Text);
         }
 
-        public void enum_series()
-        {
-            if (comboBox_chart_area.Items.Count > 0)
-            {                
-                string chartarea_name = comboBox_chart_area.SelectedItem.ToString();
-                comboBox_series.Items.Clear();
-                comboBox_series.Text = "";
-                if (chartarea_name != null)
-                {
-                    ////// enumerate all the series in the chartarea
-                    List<Series> series_list = new List<Series>();
-                    foreach (Series series in form_waveform.chart1.Series)
-                    {
-                        if (series.Name.Contains(chartarea_name)) // check the chartarea name
-                        {
-                            comboBox_series.Items.Add(series.Name);
-                            comboBox_series.SelectedItem = series.Name;
-                        }
-                    }
-                }
-            }
-        }
+
         private void textBox_color_TextChanged(object sender, EventArgs e)
         {
 
@@ -663,7 +649,8 @@ namespace digital_oscillscope
                 comboBox_series.Items.Remove(series_item);
                 form_waveform.chart1.Series.Remove(chart_series[chartarea_name][series_name].series);
                 chart_series[chartarea_name].Remove(series_name);
-                enum_series();
+
+                refresh_series_combobox_list(chartarea_name);
             }
             else
             {
@@ -714,6 +701,65 @@ namespace digital_oscillscope
             return names;
         }
 
+        public List<string> enum_series(string chartarea_name)
+        {
+            ////// enumerate all the series in the chartarea
+            List<string> series_list = new List<string>();
+            foreach (Series series in form_waveform.chart1.Series)
+            {
+                if (series.Name.Contains(chartarea_name)) // check the chartarea name
+                {
+                    series_list.Add(series.Name);
+                }
+            }
+            return series_list;
+        }
+
+        public void refresh_series_combobox_list(string chartarea_name)
+        {
+            if (chartarea_name == "")
+            {
+                return;
+            }
+
+            // clear combobox
+            comboBox_series.Items.Clear();
+            comboBox_series.Text = "";
+
+            // get all the series in the chartarea
+            var series_list = enum_series(chartarea_name);
+            foreach (string name in series_list)
+            {
+                if (name.Contains(chartarea_name)) // check the chartarea name
+                {
+                    comboBox_series.Items.Add(name);
+                    comboBox_series.SelectedItem = name;
+                }
+            }
+        }
+
+        public void enum_series_1()
+        {
+            if (comboBox_chart_area.Items.Count > 0)
+            {
+                string chartarea_name = comboBox_chart_area.SelectedItem.ToString();
+                comboBox_series.Items.Clear();
+                comboBox_series.Text = "";
+                if (chartarea_name != null)
+                {
+                    ////// enumerate all the series in the chartarea
+                    List<Series> series_list = new List<Series>();
+                    foreach (Series series in form_waveform.chart1.Series)
+                    {
+                        if (series.Name.Contains(chartarea_name)) // check the chartarea name
+                        {
+                            comboBox_series.Items.Add(series.Name);
+                            comboBox_series.SelectedItem = series.Name;
+                        }
+                    }
+                }
+            }
+        }
         private void checkBox_x_alignment_CheckedChanged(object sender, EventArgs e)
         {
             List<string> chartareas_names = enum_chartaeea();
@@ -755,6 +801,11 @@ namespace digital_oscillscope
         private void radioButton_fft_CheckedChanged(object sender, EventArgs e)
         {
             check_waveform_type();
+        }
+
+        private void comboBox_chart_area_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            refresh_series_combobox_list(comboBox_chart_area.Text);
         }
     }
 }

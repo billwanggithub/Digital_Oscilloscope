@@ -31,6 +31,9 @@ namespace digital_oscillscope
         {
             this.tabControl2 = new System.Windows.Forms.TabControl();
             this.tabPage_main = new System.Windows.Forms.TabPage();
+            this.groupBox8 = new System.Windows.Forms.GroupBox();
+            this.radioButton_tektronix = new System.Windows.Forms.RadioButton();
+            this.radioButton_lecory = new System.Windows.Forms.RadioButton();
             this.groupBox5 = new System.Windows.Forms.GroupBox();
             this.button_color_background = new System.Windows.Forms.Button();
             this.button_color_line = new System.Windows.Forms.Button();
@@ -97,11 +100,9 @@ namespace digital_oscillscope
             this.richTextBox_console = new System.Windows.Forms.RichTextBox();
             this.colorDialog1 = new System.Windows.Forms.ColorDialog();
             this.progressBar1 = new System.Windows.Forms.ProgressBar();
-            this.groupBox8 = new System.Windows.Forms.GroupBox();
-            this.radioButton_lecory = new System.Windows.Forms.RadioButton();
-            this.radioButton_tektronix = new System.Windows.Forms.RadioButton();
             this.tabControl2.SuspendLayout();
             this.tabPage_main.SuspendLayout();
+            this.groupBox8.SuspendLayout();
             this.groupBox5.SuspendLayout();
             this.groupBox10.SuspendLayout();
             this.groupBox9.SuspendLayout();
@@ -112,7 +113,6 @@ namespace digital_oscillscope
             this.groupBox2.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.groupBox1.SuspendLayout();
-            this.groupBox8.SuspendLayout();
             this.SuspendLayout();
             // 
             // tabControl2
@@ -157,6 +157,43 @@ namespace digital_oscillscope
             this.tabPage_main.Text = "Main";
             this.tabPage_main.UseVisualStyleBackColor = true;
             this.tabPage_main.Click += new System.EventHandler(this.tabPage_main_Click);
+            // 
+            // groupBox8
+            // 
+            this.groupBox8.Controls.Add(this.radioButton_tektronix);
+            this.groupBox8.Controls.Add(this.radioButton_lecory);
+            this.groupBox8.Location = new System.Drawing.Point(244, 72);
+            this.groupBox8.Name = "groupBox8";
+            this.groupBox8.Size = new System.Drawing.Size(144, 44);
+            this.groupBox8.TabIndex = 52;
+            this.groupBox8.TabStop = false;
+            this.groupBox8.Text = "DSO";
+            // 
+            // radioButton_tektronix
+            // 
+            this.radioButton_tektronix.AutoSize = true;
+            this.radioButton_tektronix.Checked = true;
+            this.radioButton_tektronix.Location = new System.Drawing.Point(68, 21);
+            this.radioButton_tektronix.Name = "radioButton_tektronix";
+            this.radioButton_tektronix.Size = new System.Drawing.Size(69, 16);
+            this.radioButton_tektronix.TabIndex = 0;
+            this.radioButton_tektronix.TabStop = true;
+            this.radioButton_tektronix.Text = "Tektronix";
+            this.radioButton_tektronix.UseVisualStyleBackColor = true;
+            this.radioButton_tektronix.CheckedChanged += new System.EventHandler(this.radioButton_waveform_CheckedChanged);
+            // 
+            // radioButton_lecory
+            // 
+            this.radioButton_lecory.AutoSize = true;
+            this.radioButton_lecory.Checked = true;
+            this.radioButton_lecory.Location = new System.Drawing.Point(6, 20);
+            this.radioButton_lecory.Name = "radioButton_lecory";
+            this.radioButton_lecory.Size = new System.Drawing.Size(56, 16);
+            this.radioButton_lecory.TabIndex = 0;
+            this.radioButton_lecory.TabStop = true;
+            this.radioButton_lecory.Text = "Lecory";
+            this.radioButton_lecory.UseVisualStyleBackColor = true;
+            this.radioButton_lecory.CheckedChanged += new System.EventHandler(this.radioButton_waveform_CheckedChanged);
             // 
             // groupBox5
             // 
@@ -643,6 +680,7 @@ namespace digital_oscillscope
             this.comboBox_chart_area.Name = "comboBox_chart_area";
             this.comboBox_chart_area.Size = new System.Drawing.Size(117, 20);
             this.comboBox_chart_area.TabIndex = 41;
+            this.comboBox_chart_area.SelectedIndexChanged += new System.EventHandler(this.comboBox_chart_area_SelectedIndexChanged);
             // 
             // groupBox3
             // 
@@ -836,43 +874,6 @@ namespace digital_oscillscope
             this.progressBar1.Size = new System.Drawing.Size(569, 23);
             this.progressBar1.TabIndex = 50;
             // 
-            // groupBox8
-            // 
-            this.groupBox8.Controls.Add(this.radioButton_tektronix);
-            this.groupBox8.Controls.Add(this.radioButton_lecory);
-            this.groupBox8.Location = new System.Drawing.Point(244, 72);
-            this.groupBox8.Name = "groupBox8";
-            this.groupBox8.Size = new System.Drawing.Size(144, 44);
-            this.groupBox8.TabIndex = 52;
-            this.groupBox8.TabStop = false;
-            this.groupBox8.Text = "DSO";
-            // 
-            // radioButton_lecory
-            // 
-            this.radioButton_lecory.AutoSize = true;
-            this.radioButton_lecory.Checked = true;
-            this.radioButton_lecory.Location = new System.Drawing.Point(6, 20);
-            this.radioButton_lecory.Name = "radioButton_lecory";
-            this.radioButton_lecory.Size = new System.Drawing.Size(56, 16);
-            this.radioButton_lecory.TabIndex = 0;
-            this.radioButton_lecory.TabStop = true;
-            this.radioButton_lecory.Text = "Lecory";
-            this.radioButton_lecory.UseVisualStyleBackColor = true;
-            this.radioButton_lecory.CheckedChanged += new System.EventHandler(this.radioButton_waveform_CheckedChanged);
-            // 
-            // radioButton_tektronix
-            // 
-            this.radioButton_tektronix.AutoSize = true;
-            this.radioButton_tektronix.Checked = true;
-            this.radioButton_tektronix.Location = new System.Drawing.Point(68, 21);
-            this.radioButton_tektronix.Name = "radioButton_tektronix";
-            this.radioButton_tektronix.Size = new System.Drawing.Size(69, 16);
-            this.radioButton_tektronix.TabIndex = 0;
-            this.radioButton_tektronix.TabStop = true;
-            this.radioButton_tektronix.Text = "Tektronix";
-            this.radioButton_tektronix.UseVisualStyleBackColor = true;
-            this.radioButton_tektronix.CheckedChanged += new System.EventHandler(this.radioButton_waveform_CheckedChanged);
-            // 
             // Form_dso
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
@@ -887,6 +888,8 @@ namespace digital_oscillscope
             this.tabControl2.ResumeLayout(false);
             this.tabPage_main.ResumeLayout(false);
             this.tabPage_main.PerformLayout();
+            this.groupBox8.ResumeLayout(false);
+            this.groupBox8.PerformLayout();
             this.groupBox5.ResumeLayout(false);
             this.groupBox10.ResumeLayout(false);
             this.groupBox10.PerformLayout();
@@ -906,8 +909,6 @@ namespace digital_oscillscope
             this.groupBox3.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
-            this.groupBox8.ResumeLayout(false);
-            this.groupBox8.PerformLayout();
             this.ResumeLayout(false);
 
         }
