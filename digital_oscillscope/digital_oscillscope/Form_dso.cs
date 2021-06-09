@@ -263,9 +263,6 @@ namespace digital_oscillscope
             double cutoff_frequency = 0;
             int filter_order = 2;
 
-            int x_begin_index = 0;
-            int x_end_index = 0;
-
             ////// read waveform data
             if (read_waveform() == false)
                 return;
@@ -376,153 +373,110 @@ namespace digital_oscillscope
             }
             chart_series[chart_area_name][series_name] = (form_waveform.chart1.Series[series_name], hdo4034a.data[ch_name].x, hdo4034a.data[ch_name].y);
 
-
-            var x_origonal = chart_series[chart_area_name][series_name].x;
-            var y_origonal = chart_series[chart_area_name][series_name].y;
-            var y_filtered = CLass_DSP.butterworth_filter(y_origonal, hdo4034a.data[ch_name].horizontal_interval, cutoff_frequency, filter_order);
-            if (radioButton_waveform.Checked || radioButton_fft.Checked)
+            // origonal data
+            double[] x_org, y_org;
+            double sampling_time = hdo4034a.data[ch_name].horizontal_interval;
+            (x_org, y_org) = (chart_series[chart_area_name][series_name].x, chart_series[chart_area_name][series_name].y);
+            if (x_org.Count() < 2)
             {
-                my_ui.console_print(richTextBox_console, $"Data Filter/Decimation\n");          
+                my_ui.console_print(richTextBox_console, $"no data\n");
+                return;
+            }
+            my_ui.console_print(richTextBox_console, $"data count = {x_org.Count()} Sampling Rate = {1 / sampling_time}\n");
 
-                //x = CLass_DSP.data_decimation(chart_series[chart_area_name][series_name].x, decimation_interval);
-                //y = CLass_DSP.data_decimation(chart_series[chart_area_name][series_name].y, decimation_interval);
+            // filter
+            my_ui.console_print(richTextBox_console, $"filter data\n");
+            var y_filtered = CLass_DSP.butterworth_filter(y_org, sampling_time, cutoff_frequency, filter_order);
+            var x_filtered = x_org;
 
-                double[] x_decimation;
-                double[] y_decimation;
+            // zoom in x and the corresponding y
+            my_ui.console_print(richTextBox_console, $"zoom data\n");
+            double[] x_zoom, y_zoom;
+            (x_zoom, y_zoom) = zoom_in(x_filtered, y_filtered, x_begin, x_end);
+            x_begin = x_zoom.Min();
+            x_end = x_zoom.Max();
+            my_ui.console_print(richTextBox_console, $"data count = {x_zoom.Count()} Sampling Rate = {1 / sampling_time}\n");
 
-                (x_decimation, y_decimation) = CLass_DSP.moving_average(x_origonal, y_filtered, decimation_interval, 
-                    false, progressBar1);
+            // data decimation
+            my_ui.console_print(richTextBox_console, $"decimation data\n");
+            double[] x_decimation;
+            double[] y_decimation;
+            (x_decimation, y_decimation) = CLass_DSP.moving_average(x_zoom, y_zoom, decimation_interval,
+                false, progressBar1);
+            sampling_time *= decimation_interval;
+            my_ui.console_print(richTextBox_console, $"data count = {x_decimation.Count()} Sampling Rate = {1 / sampling_time}\n");
 
-                int size_decimation = x_decimation.Count();
-                if (size_decimation >= 2000000)
+            // check data size after zomm and decimation
+            int size_decimation = x_decimation.Count();
+            if (size_decimation >= 2000000)
+            {
+                DialogResult dialog_result = MessageBox.Show($"Display data count is {size_decimation / 1000000}M(over 2M)\nThis will cause memory overflow or time-consuming\n" +
+                    "Please Reduce data count by decimation or zomm X axis\n Do you wang to continue",
+                   "Display Count Warning!!", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (dialog_result == DialogResult.No)
+                    return;
+            }
+
+            if (radioButton_waveform.Checked)
+            {
+                // waveform
+                (x, y) = (x_decimation, y_decimation);
+            }
+            else if (radioButton_fft.Checked)
+            {
+                // FFT
+                my_ui.console_print(richTextBox_console, $"Calcultate spectrum\n");
+
+                int power_of_2 = 0;
+                int fft_size = 0;
+
+                // Calculate the FFT size(power of 2)
+                for (power_of_2 = 0; power_of_2 < 25; power_of_2++)
                 {
-                    DialogResult dialog_result = MessageBox.Show($"Display data count is {size_decimation / 1000000}M(over 2M)\nThis will cause memory overflow or time-consuming\n" +
-                        "Please Reduce data count by decimation or zomm X axis\n Do you wang to continue",
-                       "Display Count Warning!!", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                    if (dialog_result == DialogResult.No)
-                        return;
-                }
-
-
-                if (radioButton_fft.Checked)
-                {
-                    int power_of_2 = 0;
-                    int fft_size = 0;
-
-                    // Calculate the FFT size(power of 2)
-                    for (power_of_2 = 0; power_of_2 < 25; power_of_2++)
+                    fft_size = (int)(Math.Pow(2, power_of_2));
+                    if (fft_size >= size_decimation)
                     {
-                        fft_size = (int)(Math.Pow(2, power_of_2));
-                        if (fft_size >= size_decimation)
-                        {
-                            break;
-                        }
+                        break;
                     }
-                    
-                    double[] data_pof2 = new double[fft_size];
-                    Array.Copy(y_decimation, data_pof2, y_decimation.Length);
-                    var fft = new RealFft(fft_size);
-                    //float[] spectrum = new float[2 ^ power_of_2];
-                    int sampling_rate = (int)(1 / (hdo4034a.data[ch_name].horizontal_interval * decimation_interval));
-                    var signal = new DiscreteSignal(sampling_rate, data_pof2.Select(v => (float)v).ToArray(), true);
-                    var mag_spectrum = fft.MagnitudeSpectrum(signal);
-                    y = mag_spectrum.Samples.Select(s => LevelScale.ToDecibel(s)).ToArray();
-
-                    double df = sampling_rate / fft_size;
-                    x = Enumerable.Range(0, y.Length).Select(s => s * df).ToArray();
-
-                    my_ui.console_print(richTextBox_console, $"Data size = {size_decimation} Sampling Rate = {1 / hdo4034a.data[ch_name].horizontal_interval}\n");
-                    my_ui.console_print(richTextBox_console, $"FFT size = {fft_size} Sampling Rate = {sampling_rate}\n");
-
                 }
-                else
-                {
-                    (x, y) = (x_decimation, y_decimation);
-                }
+
+                // padding with zero
+                double[] data_pof2 = new double[fft_size];
+                Array.Copy(y_decimation, data_pof2, y_decimation.Length);
+
+                // calculate magnitude of spectrum
+                var fft = new RealFft(fft_size);
+                int sampling_rate = (int)(1 / sampling_time);
+                var signal = new DiscreteSignal(sampling_rate, data_pof2.Select(v => (float)v).ToArray(), true);
+                var mag_spectrum = fft.MagnitudeSpectrum(signal);
+                y = mag_spectrum.Samples.Select(s => LevelScale.ToDecibel(s)).ToArray();
+
+                double df = sampling_rate / fft_size;
+                x = Enumerable.Range(0, y.Length).Select(s => s * df).ToArray();               
+                my_ui.console_print(richTextBox_console, $"FFT size = {fft_size} Sampling Rate = {sampling_rate}\n");
+
             }
             else if (radioButton_duty.Checked)
             {
+                // Duty
                 my_ui.console_print(richTextBox_console, $"Calculating Duty cycles\n");
-                var data_calculated = CLass_DSP.find_transitions(x_origonal, y_origonal, threshold_high, threshold_low, progressBar1);
+                var data_calculated = CLass_DSP.find_transitions(x_filtered, y_filtered, threshold_high, threshold_low, progressBar1);
                 x = data_calculated.times_period.ToArray();
                 y = data_calculated.dutys.ToArray();
             }
             else if (radioButton_frequency.Checked)
             {
+                // Frequency
                 my_ui.console_print(richTextBox_console, $"Calculating Frequency\n");
-                var data_calculated = CLass_DSP.find_transitions(x_origonal, y_origonal, threshold_high, threshold_low, progressBar1);
-                x = data_calculated.times_period.ToArray();
-                y = data_calculated.periods.Select(v => 1 / v).ToArray();
+                var data_calculated = CLass_DSP.find_transitions(x_filtered,y_filtered, threshold_high, threshold_low, progressBar1);
+                x = data_calculated.times_period.ToArray();                
+                y = data_calculated.periods.Select(v => (v==0)?0:1/v).ToArray();
+
             }
-            //////// scaling and offset
+
+            /// scaling and offset
             my_ui.console_print(richTextBox_console, $"Scaling.....\n");
             y = y.Select(v => v * gain + offset).ToArray();
-
-
-            if (x.Count() < 2)
-            {
-                return;
-            }
-
-            ////// calculate X begin/end index
-            len = x.Count();
-            if (checkBox_zoom_x.Checked)
-            {
-                x_begin_index = 0;
-                x_end_index = len;
-                for (int i = 0; i < len; i++)
-                {
-                    if (x[i] >= x_begin)
-                    {
-                        x_begin_index = i;
-                        break;
-                    }
-                }
-
-                for (int i = x_begin_index; i < len; i++)
-                {
-                    if (x[i] >= x_end)
-                    {
-                        x_end_index = i;
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                x_begin_index = 0;
-                x_end_index = len - 1;
-            }
-
-            ////// copy zoom data to display buffer
-            len = x_end_index - x_begin_index + 1;
-            double[] x_zoom = new double[len];
-            double[] y_zoom = new double[len];
-            Array.Copy(x, x_begin_index, x_zoom, 0, len);
-            Array.Copy(y, x_begin_index, y_zoom, 0, len);
-            x_zoom = x_zoom.Select(v => Math.Round(v, 9)).ToArray();
-            y_zoom = y_zoom.Select(v => Math.Round(v, 3)).ToArray();
-
-            //chart_areas[chart_area_name].AxisX.Minimum = x_zoom.Min();
-            //chart_areas[chart_area_name].AxisX.Maximum = x_zoom.Max();
-            textBox_x_begin.Text = x_zoom.Min().ToString("0.000000000");
-            textBox_x_end.Text = x_zoom.Max().ToString("0.000000000");
-
-            if (checkBox_zoom_y.Checked)
-            {
-                chart_areas[chart_area_name].AxisY.Minimum = y_begin;
-                chart_areas[chart_area_name].AxisY.Maximum = y_end;
-            }
-            else
-            {
-                if (x.Count() > 2)
-                {
-                    chart_areas[chart_area_name].AxisY.Minimum = y_zoom.Min();
-                    chart_areas[chart_area_name].AxisY.Maximum = y_zoom.Max();
-                    textBox_y_begin.Text = y_zoom.Min().ToString("0.000");
-                    textBox_y_end.Text = y_zoom.Max().ToString("0.000");
-                }
-            }
 
             //// draw!
             my_ui.console_print(richTextBox_console, $"Plot Waveform... Please Wait!!!!\n");
@@ -540,13 +494,78 @@ namespace digital_oscillscope
             //    }
             //}
             form_waveform.chart1.SuspendLayout();
-            chart_series[chart_area_name][series_name].series.Points.DataBindXY(x_zoom, y_zoom);
+            chart_series[chart_area_name][series_name].series.Points.DataBindXY(x, y);
             form_waveform.chart1.ResumeLayout();
             form_waveform.init_zoom(form_waveform.chart1);
             //form_waveform.chart1.Update();
             form_waveform.chart1.Invalidate();
+
+            // X/Y Axis
+            textBox_x_begin.Text = x.Min().ToString("0.000000000");
+            textBox_x_end.Text = x.Max().ToString("0.000000000");
+            chart_areas[chart_area_name].AxisX.Minimum = x.Min();
+            chart_areas[chart_area_name].AxisX.Maximum = x.Max();
+
+            if (checkBox_zoom_y.Checked)
+            {
+                chart_areas[chart_area_name].AxisY.Minimum = y_begin;
+                chart_areas[chart_area_name].AxisY.Maximum = y_end;
+            }
+            else
+            {
+                //chart_areas[chart_area_name].AxisY.Minimum = y_zoom.Min();
+                //chart_areas[chart_area_name].AxisY.Maximum = y_zoom.Max();
+            }
+
+            textBox_y_begin.Text = chart_areas[chart_area_name].AxisY.Minimum.ToString("0.000");
+            textBox_y_end.Text = chart_areas[chart_area_name].AxisY.Maximum.ToString("0.000");
             my_ui.console_print(richTextBox_console, $"Plot Waveform OK!!\n");
             GC.Collect();
+        }
+
+        public (double[] xout, double[] yout) zoom_in(double[]xin, double[] yin, double x_begin ,double x_end)
+        {           
+            int len = xin.Count();
+            int x_begin_index = 0;
+            int x_end_index = len;
+
+            // calculate index
+            if (checkBox_zoom_x.Checked)
+            {
+
+                for (int i = 0; i < len; i++)
+                {
+                    if (xin[i] >= x_begin)
+                    {
+                        x_begin_index = i;
+                        break;
+                    }
+                }
+
+                for (int i = x_begin_index; i < len; i++)
+                {
+                    if (xin[i] >= x_end)
+                    {
+                        x_end_index = i;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                x_begin_index = 0;
+                x_end_index = len - 1;
+            }
+
+            // copy zoom data 
+            len = x_end_index - x_begin_index + 1;
+            double[] x_zoom = new double[len];
+            double[] y_zoom = new double[len];
+            Array.Copy(xin, x_begin_index, x_zoom, 0, len);
+            Array.Copy(yin, x_begin_index, y_zoom, 0, len);
+            x_zoom = x_zoom.Select(v => Math.Round(v, 9)).ToArray();
+            y_zoom = y_zoom.Select(v => Math.Round(v, 3)).ToArray();
+            return (x_zoom, y_zoom);
         }
 
         public void plot_waveforms()
