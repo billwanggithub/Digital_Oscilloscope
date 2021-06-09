@@ -16,6 +16,8 @@ using LevelScale = NWaves.Utils.Scale;
 using DSO;
 using MY_UI;
 using MY_FUNCTION;
+using NWaves.Operations;
+using NWaves.Signals;
 
 namespace digital_oscillscope
 {
@@ -376,6 +378,7 @@ namespace digital_oscillscope
             // origonal data
             double[] x_org, y_org;
             double sampling_time = hdo4034a.data[ch_name].horizontal_interval;
+            double sampling_rate = 1 / sampling_time;
             (x_org, y_org) = (chart_series[chart_area_name][series_name].x, chart_series[chart_area_name][series_name].y);
             if (x_org.Count() < 2)
             {
@@ -403,8 +406,19 @@ namespace digital_oscillscope
             double[] y_decimation;
             (x_decimation, y_decimation) = CLass_DSP.moving_average(x_zoom, y_zoom, decimation_interval,
                 false, progressBar1);
+
+            //var resampler = new Resampler();
+            //var signal = new DiscreteSignal((int)sampling_rate, x_zoom.Select(v => (float)v).ToArray(), true);
+            //var signal_decimation = resampler.Decimate(signal, decimation_interval);
+            //x_decimation = signal_decimation.Samples.Select(v => (double)v).ToArray();
+
+            //signal = new DiscreteSignal((int)sampling_rate, y_zoom.Select(v => (float)v).ToArray(), true);
+            //signal_decimation = resampler.Decimate(signal, decimation_interval);
+            //y_decimation = signal_decimation.Samples.Select(v => (double)v).ToArray();
+
             sampling_time *= decimation_interval;
-            my_ui.console_print(richTextBox_console, $"data count = {x_decimation.Count()} Sampling Rate = {1 / sampling_time}\n");
+            sampling_rate = 1 / sampling_time;
+            my_ui.console_print(richTextBox_console, $"data count = {x_decimation.Count()} Sampling Rate = {sampling_rate}\n");
 
             // check data size after zomm and decimation
             int size_decimation = x_decimation.Count();
@@ -446,8 +460,7 @@ namespace digital_oscillscope
 
                 // calculate magnitude of spectrum
                 var fft = new RealFft(fft_size);
-                int sampling_rate = (int)(1 / sampling_time);
-                var signal = new DiscreteSignal(sampling_rate, data_pof2.Select(v => (float)v).ToArray(), true);
+                var signal = new DiscreteSignal((int)sampling_rate, data_pof2.Select(v => (float)v).ToArray(), true);
                 var mag_spectrum = fft.MagnitudeSpectrum(signal);
                 y = mag_spectrum.Samples.Select(s => LevelScale.ToDecibel(s)).ToArray();
 
