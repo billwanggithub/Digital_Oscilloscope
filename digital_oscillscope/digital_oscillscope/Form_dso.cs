@@ -460,7 +460,8 @@ namespace digital_oscillscope
 
                 // calculate magnitude of spectrum
                 var fft = new RealFft(fft_size);
-                var signal = new DiscreteSignal((int)sampling_rate, data_pof2.Select(v => (float)v).ToArray(), true);
+                //var signal = new DiscreteSignal((int)sampling_rate, data_pof2.Select(v => (float)v).ToArray(), true);
+                var signal = new DiscreteSignal((int)sampling_rate, data_pof2.Cast<float>().ToArray(), true);
                 var mag_spectrum = fft.MagnitudeSpectrum(signal);
                 y = mag_spectrum.Samples.Select(s => LevelScale.ToDecibel(s)).ToArray();
 
