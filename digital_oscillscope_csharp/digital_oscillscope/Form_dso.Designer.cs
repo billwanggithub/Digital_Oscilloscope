@@ -185,12 +185,10 @@ namespace digital_oscillscope
             // radioButton_lecory
             // 
             this.radioButton_lecory.AutoSize = true;
-            this.radioButton_lecory.Checked = true;
             this.radioButton_lecory.Location = new System.Drawing.Point(6, 20);
             this.radioButton_lecory.Name = "radioButton_lecory";
             this.radioButton_lecory.Size = new System.Drawing.Size(56, 16);
             this.radioButton_lecory.TabIndex = 0;
-            this.radioButton_lecory.TabStop = true;
             this.radioButton_lecory.Text = "Lecory";
             this.radioButton_lecory.UseVisualStyleBackColor = true;
             this.radioButton_lecory.CheckedChanged += new System.EventHandler(this.radioButton_waveform_CheckedChanged);
@@ -774,8 +772,6 @@ namespace digital_oscillscope
             // checkBox_read_from_file
             // 
             this.checkBox_read_from_file.AutoSize = true;
-            this.checkBox_read_from_file.Checked = true;
-            this.checkBox_read_from_file.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBox_read_from_file.Location = new System.Drawing.Point(130, 83);
             this.checkBox_read_from_file.Name = "checkBox_read_from_file";
             this.checkBox_read_from_file.Size = new System.Drawing.Size(96, 16);

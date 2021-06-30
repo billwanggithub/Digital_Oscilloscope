@@ -25,6 +25,8 @@ namespace digital_oscillscope
     {
         Form_waveform form_waveform = new Form_waveform();
         HDO4034A hdo4034a;
+        TEKSCOPE tekscope;
+        string dso_vendor = "Tektronix";
 
         Dictionary<string, ChartArea> chart_areas = new Dictionary<string, ChartArea>();
         Dictionary<string, Dictionary<string, (Series series, double[] x, double[] y)>> chart_series = new Dictionary<string, Dictionary<string, (Series series, double[] x, double[] y)>>();
@@ -171,26 +173,55 @@ namespace digital_oscillscope
                 }
             }
             else
-            {
-                if (radioButton_ch1.Checked)
-                    ch_name = "C1";
-                else if (radioButton_ch2.Checked)
-                    ch_name = "C2";
-                else if (radioButton_ch3.Checked)
-                    ch_name = "C3";
-                else if (radioButton_ch4.Checked)
-                    ch_name = "C4";
-                else
-                    return false;
+            {                
+                if (dso_vendor == "Lecory")
+                {
+                    if (radioButton_ch1.Checked)
+                        ch_name = "C1";
+                    else if (radioButton_ch2.Checked)
+                        ch_name = "C2";
+                    else if (radioButton_ch3.Checked)
+                        ch_name = "C3";
+                    else if (radioButton_ch4.Checked)
+                        ch_name = "C4";
+                    else
+                        return false;
 
-                hdo4034a = new HDO4034A();
-                hdo4034a.init();
-                hdo4034a.read_raw(ch_name);
-                hdo4034a.deinit();
-                hdo4034a.parse_raw(ch_name);
-                DSO_DATA data_temp = hdo4034a.data[ch_name];
-                hdo4034a.process_data(ref data_temp, null);
-                hdo4034a.data[ch_name] = data_temp;
+                    hdo4034a = new HDO4034A();
+                    hdo4034a.init();
+                    tekscope.vendor = "Lecory";
+                    hdo4034a.read_raw(ch_name);
+                    hdo4034a.deinit();
+                    hdo4034a.parse_raw(ch_name);
+                    DSO_DATA data_temp = hdo4034a.data[ch_name];
+                    hdo4034a.process_data(ref data_temp, null);
+                    hdo4034a.data[ch_name] = data_temp;
+                }
+                else if (dso_vendor == "Tektronix")
+                {
+                    if (radioButton_ch1.Checked)
+                        ch_name = "ch1";
+                    else if (radioButton_ch2.Checked)
+                        ch_name = "ch2";
+                    else if (radioButton_ch3.Checked)
+                        ch_name = "ch3";
+                    else if (radioButton_ch4.Checked)
+                        ch_name = "ch4";
+                    else
+                        return false;
+
+                    tekscope = new TEKSCOPE();
+                    tekscope.init();
+                    tekscope.vendor = "Tektronix";
+                    tekscope.read_raw(ch_name);
+                    tekscope.data[ch_name].header = tekscope.get_template(null);
+                    tekscope.deinit();
+                    tekscope.parse_raw(ch_name);
+                    DSO_DATA data_temp = tekscope.data[ch_name];
+                    tekscope.process_data(ref data_temp, null);
+                    tekscope.data[ch_name] = data_temp;
+                }
+
             }
 
             return true;
@@ -247,6 +278,11 @@ namespace digital_oscillscope
 
         private void button_add_waveform_Click(object sender, EventArgs e)
         {
+            if (radioButton_tektronix.Checked)
+                dso_vendor = "Tektronix";
+            else if (radioButton_tektronix.Checked)
+                dso_vendor = "Lecory";
+
             add_series();
             refresh_series_combobox_list(comboBox_chart_area.Text);
         }
@@ -355,29 +391,57 @@ namespace digital_oscillscope
             ////// save data to dictionary
             
             string ch_name = "";
-            if (checkBox_read_from_file.Checked)
-                ch_name = "C1";
-            else
+            if (hdo4034a != null)
             {
-                if (radioButton_ch1.Checked)
+                if (checkBox_read_from_file.Checked)
                     ch_name = "C1";
-                else if (radioButton_ch2.Checked)
-                    ch_name = "C2";
-                else if (radioButton_ch3.Checked)
-                    ch_name = "C3";
-                else if (radioButton_ch4.Checked)
-                    ch_name = "C4";
+                else
+                {
+                    if (radioButton_ch1.Checked)
+                        ch_name = "C1";
+                    else if (radioButton_ch2.Checked)
+                        ch_name = "C2";
+                    else if (radioButton_ch3.Checked)
+                        ch_name = "C3";
+                    else if (radioButton_ch4.Checked)
+                        ch_name = "C4";
+                }
+            }
+            else if (tekscope != null)
+            {
+                if (checkBox_read_from_file.Checked)
+                    ch_name = "ch1";
+                else
+                {
+                    if (radioButton_ch1.Checked)
+                        ch_name = "ch1";
+                    else if (radioButton_ch2.Checked)
+                        ch_name = "ch2";
+                    else if (radioButton_ch3.Checked)
+                        ch_name = "ch3";
+                    else if (radioButton_ch4.Checked)
+                        ch_name = "ch4";
+                }
             }
 
             if (ch_name == "")
             {
                 return;
             }
-            chart_series[chart_area_name][series_name] = (form_waveform.chart1.Series[series_name], hdo4034a.data[ch_name].x, hdo4034a.data[ch_name].y);
+
+            if (hdo4034a != null)
+                chart_series[chart_area_name][series_name] = (form_waveform.chart1.Series[series_name], hdo4034a.data[ch_name].x, hdo4034a.data[ch_name].y);
+            else if (tekscope != null)
+                chart_series[chart_area_name][series_name] = (form_waveform.chart1.Series[series_name], tekscope.data[ch_name].x, tekscope.data[ch_name].y);
 
             // origonal data
             double[] x_org, y_org;
-            double sampling_time = hdo4034a.data[ch_name].horizontal_interval;
+            double sampling_time = 0;
+            if (hdo4034a != null)
+                sampling_time = hdo4034a.data[ch_name].horizontal_interval;
+            else if (tekscope != null)
+                sampling_time = tekscope.data[ch_name].horizontal_interval;
+
             double sampling_rate = 1 / sampling_time;
             (x_org, y_org) = (chart_series[chart_area_name][series_name].x, chart_series[chart_area_name][series_name].y);
             if (x_org.Count() < 2)
@@ -420,19 +484,19 @@ namespace digital_oscillscope
             sampling_rate = 1 / sampling_time;
             my_ui.console_print(richTextBox_console, $"data count = {x_decimation.Count()} Sampling Rate = {sampling_rate}\n");
 
-            // check data size after zomm and decimation
             int size_decimation = x_decimation.Count();
-            if (size_decimation >= 2000000)
-            {
-                DialogResult dialog_result = MessageBox.Show($"Display data count is {size_decimation / 1000000}M(over 2M)\nThis will cause memory overflow or time-consuming\n" +
-                    "Please Reduce data count by decimation or zomm X axis\n Do you wang to continue",
-                   "Display Count Warning!!", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                if (dialog_result == DialogResult.No)
-                    return;
-            }
 
             if (radioButton_waveform.Checked)
             {
+                // check data size after zomm and decimation
+                if (size_decimation >= 2000000)
+                {
+                    DialogResult dialog_result = MessageBox.Show($"Display data count is {size_decimation / 1000000}M(over 2M)\nThis will cause memory overflow or time-consuming\n" +
+                        "Please Reduce data count by decimation or zomm X axis\n Do you wang to continue",
+                       "Display Count Warning!!", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    if (dialog_result == DialogResult.No)
+                        return;
+                }
                 // waveform
                 (x, y) = (x_decimation, y_decimation);
             }
