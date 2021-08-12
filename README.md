@@ -1,3 +1,3 @@
 # Digital_Oscilloscope
 
-Read Waveform from Tektronix/Lecory Oscillscope
+Read Waveform from Tektronix/Lecory Oscilliscope
